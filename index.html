@@ -67,7 +67,7 @@
         <div id="s2ropes" class="ropes"></div>
         <div class="small muted">5명을 세 줄에 위 숫자대로 배치한 뒤 판정 결과를 입력하세요.</div>
         <div id="s2resultBtns" class="resultBtns stage2"></div>
-        <div id="s2notice" class="notice">SAME = 세 줄 중 하나 이상이 정답과 같은 인원수, DIFF = 세 줄 모두 다름.</div>
+        <div id="s2notice" class="notice">정답 1개 이상 = 세 줄 중 하나 이상이 정답과 같은 인원수, 정답 0개 = 세 줄 모두 정답과 다름.</div>
         <div class="stats">
           <div class="stat"><b id="s2candN">21</b><span>가능한 정답</span></div>
           <div class="stat"><b id="s2clearP">4.8%</b><span>다음 배치 즉시 성공 확률</span></div>
@@ -83,7 +83,7 @@
       <aside class="card">
         <div class="kicker">진행 기록</div><div id="s2history" class="history"><div class="muted small">아직 입력한 결과가 없습니다.</div></div>
         <div style="margin-top:16px" class="kicker">남은 후보</div><div id="s2candidateList" class="candidateList"></div>
-        <div class="notice" style="margin-top:16px">2단계는 가능한 21개 분배를 모두 유지하면서 SAME/DIFF 결과로 필터링합니다. 평균 우선은 다음 분기 후 남는 후보 수의 기대값을 최소화하는 greedy 정책입니다.</div>
+        <div class="notice" style="margin-top:16px">2단계는 가능한 21개 분배를 모두 유지하면서 “정답 0개 / 정답 1개 이상” 결과로 필터링합니다. 평균 우선은 다음 분기 후 남는 후보 수의 기대값을 최소화하는 greedy 정책입니다.</div>
       </aside>
     </div>
   </div>
@@ -126,15 +126,15 @@
   function s2render(){
     $('s2stepTitle').textContent=`${s2hist.length+1}차 배치`;
     $('s2ropes').innerHTML=s2guess.map((n,i)=>`<div class="rope"><div class="n">${n}</div><div class="lab">${i+1}번 줄</div></div>`).join('');
-    $('s2resultBtns').innerHTML=['DIFF','SAME','CLEAR'].map(r=>`<button data-r="${r}" class="${r==='CLEAR'?'primary':''}">${r}</button>`).join('');
+    $('s2resultBtns').innerHTML=['DIFF','SAME','CLEAR'].map(r=>{const label=r==='DIFF'?'정답 0개':r==='SAME'?'정답 1개 이상':'CLEAR';return `<button data-r="${r}" class="${r==='CLEAR'?'primary':''}">${label}</button>`}).join('');
     [...$('s2resultBtns').querySelectorAll('button')].forEach(b=>b.onclick=()=>s2apply(b.dataset.r));
     const d=s2part(s2cands,s2guess), ns=[d.DIFF.length,d.SAME.length,d.CLEAR.length], total=s2cands.length;
     $('s2candN').textContent=total; $('s2clearP').textContent=((ns[2]/total)*100).toFixed(1)+'%'; $('s2worstN').textContent=Math.max(ns[0],ns[1]);
-    $('s2dist').innerHTML=ns.map((n,i)=>`<div class="seg" style="flex:${Math.max(n,.2)}" title="${['DIFF','SAME','CLEAR'][i]}: ${n}개">${n?['D','S','C'][i]:''}</div>`).join('');
-    $('s2distLabel').textContent=`다음 결과별 후보 수: DIFF→${ns[0]} / SAME→${ns[1]} / CLEAR→${ns[2]}`;
+    $('s2dist').innerHTML=ns.map((n,i)=>`<div class="seg" style="flex:${Math.max(n,.2)}" title="${['정답 0개','정답 1개 이상','CLEAR'][i]}: ${n}개">${n?['0','1+','C'][i]:''}</div>`).join('');
+    $('s2distLabel').textContent=`다음 결과별 후보 수: 정답 0개→${ns[0]} / 정답 1개 이상→${ns[1]} / CLEAR→${ns[2]}`;
     $('s2notice').className='notice';
     if(total===1){$('s2notice').className='notice clear';$('s2notice').innerHTML=`정답 확정: <b>${s2name(s2cands[0])}</b>`;} else $('s2notice').textContent=$('s2mode').value==='mean'?'현재 후보에서 다음 결과 후 남을 후보 수의 기대값이 가장 작은 배치를 추천합니다.':'현재 후보에서 가장 큰 분기를 최소화하는 배치를 추천합니다.';
-    if(!s2hist.length)$('s2history').innerHTML='<div class="muted small">아직 입력한 결과가 없습니다.</div>'; else $('s2history').innerHTML=s2hist.map((h,i)=>`<div class="hrow"><div>${i+1}</div><div class="hguess">${s2name(h.guess)}</div><div class="hres">${h.result}</div></div>`).join('');
+    if(!s2hist.length)$('s2history').innerHTML='<div class="muted small">아직 입력한 결과가 없습니다.</div>'; else $('s2history').innerHTML=s2hist.map((h,i)=>{const label=h.result==='DIFF'?'정답 0개':h.result==='SAME'?'정답 1개 이상':h.result;return `<div class="hrow"><div>${i+1}</div><div class="hguess">${s2name(h.guess)}</div><div class="hres">${label}</div></div>`}).join('');
     $('s2candidateList').textContent=s2cands.map(s2name).join('  |  ');
   }
   function s2apply(r){const before=[...s2cands];const next=before.filter(t=>s2feedback(s2guess,t)===r);if(!next.length){alert('이 결과는 지금까지의 입력과 모순됩니다.');return;}s2hist.push({guess:[...s2guess],result:r,before});if(r==='CLEAR'){s2cands=[[...s2guess]];s2render();return;}s2cands=next;s2guess=s2choose(s2cands,$('s2mode').value);s2render();}
