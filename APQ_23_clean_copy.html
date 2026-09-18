@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>APQ 2·3단계 Solver</title>
+<style>
+  :root{--bg:#0b1020;--card:#131a2d;--muted:#8792ad;--text:#eef3ff;--accent:#7da7ff;--good:#56d6a0;--warn:#ffcf66;--bad:#ff7b8a;--line:#26304a}
+  *{box-sizing:border-box} body{margin:0;background:linear-gradient(160deg,#08101f,#0e1530 55%,#101b35);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,sans-serif;min-height:100vh}
+  .wrap{max-width:980px;margin:auto;padding:28px 18px 56px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:16px}
+  h1{font-size:28px;margin:0 0 6px}.sub{color:var(--muted);line-height:1.55}.pill{display:inline-flex;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:#c8d2eb;font-size:13px}
+  .tabs{display:flex;gap:8px;margin:0 0 16px}.tab{padding:11px 16px;border-radius:12px;background:#11192d;border:1px solid var(--line);font-weight:750}.tab.active{background:#3567d6;border-color:#5684ed}
+  .pane{display:none}.pane.active{display:block}.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}@media(max-width:800px){.grid{grid-template-columns:1fr}.top{display:block}.pill{margin-top:10px}}
+  .card{background:rgba(19,26,45,.92);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+  .kicker{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.08em}.big{font-size:34px;font-weight:800;line-height:1.15;margin:8px 0 10px}
+  .platforms{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:14px 0 8px}.plat{background:#1d2742;border:1px solid #33415f;border-radius:13px;padding:13px 6px;text-align:center;font-size:20px;font-weight:750}.plat.active{background:rgba(125,167,255,.16);border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(125,167,255,.2)}
+  .ropes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 8px}.rope{background:#1d2742;border:1px solid #33415f;border-radius:13px;padding:16px 8px;text-align:center}.rope .n{font-size:30px;font-weight:850}.rope .lab{font-size:12px;color:var(--muted);margin-top:3px}
+  .resultBtns{display:grid;gap:8px;margin-top:12px}.resultBtns.stage3{grid-template-columns:repeat(5,1fr)}.resultBtns.stage2{grid-template-columns:repeat(3,1fr)}.resultBtns button{font-size:18px;font-weight:750;padding:13px 0}
+  button,select,input{font:inherit} button{cursor:pointer;background:#202a45;color:var(--text);border:1px solid #36415d;border-radius:11px;padding:10px 12px;transition:.12s}.resultBtns button:hover,.primary:hover{transform:translateY(-1px);border-color:#5d75a8}.primary{background:#3567d6;border-color:#5684ed}.ghost{background:transparent}.danger{border-color:#6b3944;color:#ffd5da}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.stat{background:#0e1528;border:1px solid var(--line);border-radius:13px;padding:11px}.stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--muted)}
+  .dist{display:flex;gap:5px;height:26px;margin:12px 0 3px}.seg{min-width:3px;border-radius:6px;background:#52617f;display:flex;align-items:center;justify-content:center;font-size:11px;overflow:hidden}.seg:last-child{background:#347b60}
+  .muted{color:var(--muted)}.small{font-size:12px}.history{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:410px;overflow:auto}.hrow{display:grid;grid-template-columns:34px 1fr 64px;gap:8px;align-items:center;background:#0e1528;border:1px solid var(--line);border-radius:11px;padding:9px}.hguess{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.hres{text-align:center;font-weight:800;color:var(--accent)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.settings{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}.labels{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}.labels input{min-width:0;background:#0e1528;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center}
+  .notice{border-left:3px solid var(--accent);padding:9px 11px;background:#0f1830;border-radius:8px;margin-top:12px;color:#cdd8f1;font-size:13px;line-height:1.5}.clear{border-left-color:var(--good);background:rgba(40,115,82,.18)}
+  .candidateList{margin-top:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#b8c5df;max-height:180px;overflow:auto;white-space:normal;line-height:1.7}
+
+  /* --- UI polish --- */
+  :root{--card2:#0f172a;--accent2:#8fb4ff}
+  body{background:radial-gradient(circle at 20% 0%,rgba(74,113,208,.16),transparent 32%),linear-gradient(155deg,#080d19,#0d1426 55%,#111a2d)}
+  .wrap{max-width:1040px;padding-top:34px}
+  .top{align-items:center;margin-bottom:22px}.top h1{letter-spacing:-.025em}.sub{max-width:680px}
+  .tabs{padding:4px;background:rgba(9,14,27,.72);border:1px solid var(--line);border-radius:14px;width:max-content}
+  .tab{border:0;background:transparent;padding:10px 18px;color:#aeb9d1}.tab.active{background:#2f61d0;color:white;box-shadow:0 5px 14px rgba(34,79,175,.28)}
+  .card{background:linear-gradient(180deg,rgba(20,28,49,.96),rgba(16,23,41,.96));border-color:#283450;box-shadow:0 16px 44px rgba(0,0,0,.22)}
+  .kicker{font-weight:800;color:#91a0bd}.big{letter-spacing:-.035em}
+  .batchHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:3px}.batchHead .big{margin:5px 0 8px}
+  .copyBtn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;background:#182641;border-color:#35527f;color:#dce8ff;font-weight:800;padding:9px 12px}
+  .copyBtn:hover{background:#203253;border-color:#6286c3}.copyBtn.copied{background:rgba(49,132,96,.24);border-color:#4dae80;color:#bff0d8}
+  .platforms,.ropes{margin-top:12px}.plat,.rope{background:linear-gradient(180deg,#1b2741,#172137);border-color:#344463}
+  .plat.active{background:linear-gradient(180deg,rgba(69,109,197,.28),rgba(43,72,134,.18));border-color:#6d95e5}
+  .rope .n{font-size:32px}.rope .lab{font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .resultBtns{margin-top:16px}.resultBtns button{min-height:50px;border-radius:12px;background:#18233a}.resultBtns button.primary{background:#3567d6}
+  .stats{margin-top:16px}.stat{background:#0c1323;border-color:#24304a;padding:13px}.stat b{font-size:22px}
+  .toolbar{padding-top:4px}.toolbar select{background:#111a2d;color:var(--text);border:1px solid #34415d;border-radius:11px;padding:10px 12px}
+  .history{scrollbar-width:thin}.hrow{background:#0c1323}.candidateList{padding:10px 0 2px}
+  .notice{background:rgba(29,47,84,.5);border-left-width:4px}
+  @media(max-width:600px){.wrap{padding:20px 12px 36px}.top h1{font-size:24px}.pill{display:none}.tabs{width:100%}.tab{flex:1}.batchHead{align-items:flex-start}.copyBtn{font-size:13px;padding:8px 10px}.platforms{grid-template-columns:repeat(5,1fr);gap:6px}.plat{padding:12px 3px;font-size:17px}.resultBtns button{font-size:16px}}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>아모리안 파티퀘스트 Solver</h1><div class="sub">2단계와 3단계를 탭으로 전환해 사용할 수 있습니다. 현재 결과에 맞춰 다음 배치를 자동 추천합니다.</div></div>
+    <div class="pill">평균 우선 / 최악 우선 선택 가능</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="stage2">2단계</button>
+    <button class="tab" data-tab="stage3">3단계</button>
+  </div>
+
+  <div id="stage2" class="pane active">
+    <div class="grid">
+      <section class="card">
+        <div class="kicker">다음 배치</div>
+        <div class="batchHead"><div id="s2stepTitle" class="big">1차 배치</div><button id="s2copy" class="copyBtn" type="button">⧉ 배치 복사</button></div>
+        <div id="s2ropes" class="ropes"></div>
+        <div class="small muted">5명을 세 줄에 위 숫자대로 배치한 뒤 판정 결과를 입력하세요.</div>
+        <div id="s2resultBtns" class="resultBtns stage2"></div>
+        <div id="s2notice" class="notice">SAME = 세 줄 중 하나 이상이 정답과 같은 인원수, DIFF = 세 줄 모두 다름.</div>
+        <div class="stats">
+          <div class="stat"><b id="s2candN">21</b><span>가능한 정답</span></div>
+          <div class="stat"><b id="s2clearP">4.8%</b><span>다음 배치 즉시 성공 확률</span></div>
+          <div class="stat"><b id="s2worstN">0</b><span>다음 결과의 최대 후보 수</span></div>
+        </div>
+        <div id="s2dist" class="dist"></div><div id="s2distLabel" class="small muted"></div>
+        <div class="toolbar">
+          <button id="s2undo" class="ghost">↶ 한 단계 취소</button>
+          <button id="s2reset" class="danger">처음부터</button>
+          <select id="s2mode"><option value="mean">평균 우선 (min-mean greedy)</option><option value="minimax">최악 우선 (minimax greedy)</option></select>
+        </div>
+      </section>
+      <aside class="card">
+        <div class="kicker">진행 기록</div><div id="s2history" class="history"><div class="muted small">아직 입력한 결과가 없습니다.</div></div>
+        <div style="margin-top:16px" class="kicker">남은 후보</div><div id="s2candidateList" class="candidateList"></div>
+        <div class="notice" style="margin-top:16px">2단계는 가능한 21개 분배를 모두 유지하면서 SAME/DIFF 결과로 필터링합니다. 평균 우선은 다음 분기 후 남는 후보 수의 기대값을 최소화하는 greedy 정책입니다.</div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="stage3" class="pane">
+    <div class="grid">
+      <section class="card">
+        <div class="kicker">다음 배치</div><div class="batchHead"><div id="stepTitle" class="big">1차 배치</div><button id="copy" class="copyBtn" type="button">⧉ 배치 복사</button></div><div id="platforms" class="platforms"></div>
+        <div class="small muted">파티원 5명을 위 발판에 배치한 뒤 Amos를 눌러 나온 슬라임 수를 입력하세요.</div>
+        <div id="resultBtns" class="resultBtns stage3"></div><div id="notice" class="notice">첫 배치는 대칭성 때문에 어떤 5개를 골라도 정보량이 같습니다.</div>
+        <div class="stats"><div class="stat"><b id="candN">126</b><span>가능한 정답</span></div><div class="stat"><b id="clearP">0.8%</b><span>다음 배치 즉시 성공 확률</span></div><div class="stat"><b id="worstN">60</b><span>다음 결과의 최대 후보 수</span></div></div>
+        <div id="dist" class="dist"></div><div id="distLabel" class="small muted"></div>
+        <div class="toolbar"><button id="undo" class="ghost">↶ 한 단계 취소</button><button id="reset" class="danger">처음부터</button><select id="mode"><option value="mean">평균 우선 (min-mean greedy)</option><option value="minimax">최악 우선 (minimax greedy)</option></select></div>
+        <div class="settings"><div class="small muted" style="margin-bottom:8px">발판 이름 (게임 화면에 맞게 수정 가능)</div><div id="labels" class="labels"></div></div>
+      </section>
+      <aside class="card"><div class="kicker">진행 기록</div><div id="history" class="history"><div class="muted small">아직 입력한 결과가 없습니다.</div></div><div style="margin-top:16px" class="kicker">남은 후보</div><div id="candidateList" class="candidateList"></div><div class="notice" style="margin-top:16px">평균 우선 모드는 각 결과 뒤에 남을 후보 수의 기대값을 최소화하는 실시간 greedy 정책입니다. 전역 Bellman 최적해를 미리 하드코딩한 버전은 아닙니다.</div></aside>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const $=id=>document.getElementById(id); const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const lexLess=(a,b)=>{for(let i=0;i<a.length;i++){if(a[i]<b[i]-1e-12)return true;if(a[i]>b[i]+1e-12)return false}return false};
+   const copyText=async(text,btn)=>{
+     try{
+       if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(text);
+       else{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}
+       const old=btn.textContent;btn.textContent='✓ '+text+' 복사됨';btn.classList.add('copied');setTimeout(()=>{btn.textContent=old;btn.classList.remove('copied')},1100);
+     }catch(e){alert('복사에 실패했습니다. 배치: '+text);}
+   };
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active',p.id===b.dataset.tab));});
+
+  // ----- Stage 2 -----
+  const s2combos=[]; for(let a=0;a<=5;a++)for(let b=0;b<=5-a;b++){let c=5-a-b;s2combos.push([a,b,c]);}
+  const s2name=x=>x.join('');
+  const s2feedback=(q,t)=> q[0]===t[0]&&q[1]===t[1]&&q[2]===t[2] ? 'CLEAR' : (q[0]===t[0]||q[1]===t[1]||q[2]===t[2] ? 'SAME':'DIFF');
+  let s2cands=[...s2combos], s2hist=[], s2guess=[5,0,0];
+  function s2part(S,q){const d={DIFF:[],SAME:[],CLEAR:[]};for(const t of S)d[s2feedback(q,t)].push(t);return d;}
+  function s2choose(S,mode){if(S.length===1)return S[0];let best=null,keyBest=null;for(const q of s2combos){const d=s2part(S,q), ns=[d.DIFF.length,d.SAME.length,d.CLEAR.length];const expected=(ns[0]*ns[0]+ns[1]*ns[1])/S.length;const worst=Math.max(ns[0],ns[1]);const key=mode==='minimax'?[worst,expected,-ns[2]]:[expected,worst,-ns[2]];if(keyBest===null||lexLess(key,keyBest)){best=q;keyBest=key;}}return best;}
+  function s2render(){
+    $('s2stepTitle').textContent=`${s2hist.length+1}차 배치`;
+    $('s2ropes').innerHTML=s2guess.map((n,i)=>`<div class="rope"><div class="n">${n}</div><div class="lab">${i+1}번 줄</div></div>`).join('');
+    $('s2resultBtns').innerHTML=['DIFF','SAME','CLEAR'].map(r=>`<button data-r="${r}" class="${r==='CLEAR'?'primary':''}">${r}</button>`).join('');
+    [...$('s2resultBtns').querySelectorAll('button')].forEach(b=>b.onclick=()=>s2apply(b.dataset.r));
+    const d=s2part(s2cands,s2guess), ns=[d.DIFF.length,d.SAME.length,d.CLEAR.length], total=s2cands.length;
+    $('s2candN').textContent=total; $('s2clearP').textContent=((ns[2]/total)*100).toFixed(1)+'%'; $('s2worstN').textContent=Math.max(ns[0],ns[1]);
+    $('s2dist').innerHTML=ns.map((n,i)=>`<div class="seg" style="flex:${Math.max(n,.2)}" title="${['DIFF','SAME','CLEAR'][i]}: ${n}개">${n?['D','S','C'][i]:''}</div>`).join('');
+    $('s2distLabel').textContent=`다음 결과별 후보 수: DIFF→${ns[0]} / SAME→${ns[1]} / CLEAR→${ns[2]}`;
+    $('s2notice').className='notice';
+    if(total===1){$('s2notice').className='notice clear';$('s2notice').innerHTML=`정답 확정: <b>${s2name(s2cands[0])}</b>`;} else $('s2notice').textContent=$('s2mode').value==='mean'?'현재 후보에서 다음 결과 후 남을 후보 수의 기대값이 가장 작은 배치를 추천합니다.':'현재 후보에서 가장 큰 분기를 최소화하는 배치를 추천합니다.';
+    if(!s2hist.length)$('s2history').innerHTML='<div class="muted small">아직 입력한 결과가 없습니다.</div>'; else $('s2history').innerHTML=s2hist.map((h,i)=>`<div class="hrow"><div>${i+1}</div><div class="hguess">${s2name(h.guess)}</div><div class="hres">${h.result}</div></div>`).join('');
+    $('s2candidateList').textContent=s2cands.map(s2name).join('  |  ');
+  }
+  function s2apply(r){const before=[...s2cands];const next=before.filter(t=>s2feedback(s2guess,t)===r);if(!next.length){alert('이 결과는 지금까지의 입력과 모순됩니다.');return;}s2hist.push({guess:[...s2guess],result:r,before});if(r==='CLEAR'){s2cands=[[...s2guess]];s2render();return;}s2cands=next;s2guess=s2choose(s2cands,$('s2mode').value);s2render();}
+  $('s2undo').onclick=()=>{if(!s2hist.length)return;const h=s2hist.pop();s2cands=h.before;s2guess=h.guess;s2render();};
+  $('s2reset').onclick=()=>{s2cands=[...s2combos];s2hist=[];s2guess=[5,0,0];s2render();}; $('s2mode').onchange=()=>{s2guess=s2choose(s2cands,$('s2mode').value);s2render();};
+   $('s2copy').onclick=()=>copyText(s2name(s2guess),$('s2copy'));
+
+  // ----- Stage 3 -----
+  const N=9,K=5; let labels=['A','2','B','3','C','6','D','9','5']; const combos=[];
+  function gen(start,left,arr){if(left===0){combos.push(arr.reduce((m,i)=>m|(1<<i),0));return}for(let i=start;i<=N-left;i++)gen(i+1,left-1,arr.concat(i));}gen(0,K,[]);
+  const pop=x=>{let c=0;while(x){x&=x-1;c++}return c}; const inter=(a,b)=>pop(a&b); let candidates=[...combos],history=[],currentGuess=combos[0];
+  const maskToIdx=mask=>{const a=[];for(let i=0;i<N;i++)if(mask&(1<<i))a.push(i);return a}; const maskName=mask=>maskToIdx(mask).map(i=>labels[i]).join(' · ');
+  function partition(S,q){const d={1:[],2:[],3:[],4:[],5:[]};for(const c of S)d[inter(c,q)].push(c);return d}
+  function chooseGuess(S,mode){if(S.length===1)return S[0];let best=null,bestKey=null;for(const q of combos){const d=partition(S,q),ns=[1,2,3,4,5].map(r=>d[r].length);const expected=ns.slice(0,4).reduce((s,n)=>s+n*n,0)/S.length;const worst=Math.max(...ns.slice(0,4));const clear=ns[4];const key=mode==='minimax'?[worst,expected,-clear]:[expected,worst,-clear];if(bestKey===null||lexLess(key,bestKey)){best=q;bestKey=key}}return best}
+  function render(){
+    const idx=maskToIdx(currentGuess);$('stepTitle').textContent=`${history.length+1}차 배치`;$('platforms').innerHTML=idx.map(i=>`<div class="plat active">${esc(labels[i])}</div>`).join('');
+    $('resultBtns').innerHTML=[1,2,3,4,5].map(r=>`<button data-r="${r}" class="${r===5?'primary':''}">${r}${r===5?' · CLEAR':''}</button>`).join('');[...$('resultBtns').querySelectorAll('button')].forEach(b=>b.onclick=()=>applyResult(+b.dataset.r));
+    const d=partition(candidates,currentGuess),ns=[1,2,3,4,5].map(r=>d[r].length),total=candidates.length;$('candN').textContent=total;$('clearP').textContent=((ns[4]/total)*100).toFixed(1)+'%';$('worstN').textContent=Math.max(...ns.slice(0,4));
+    $('dist').innerHTML=ns.map((n,i)=>`<div class="seg" style="flex:${Math.max(n,.2)}" title="결과 ${i+1}: ${n}개">${n?i+1:''}</div>`).join('');$('distLabel').textContent='다음 결과별 후보 수: '+ns.map((n,i)=>`${i+1}→${n}`).join(' / ');
+    $('notice').className='notice';if(total===1){$('notice').className='notice clear';$('notice').innerHTML=`정답이 유일하게 확정되었습니다. <b>${esc(maskName(candidates[0]))}</b>에 서면 됩니다.`}else $('notice').textContent=$('mode').value==='mean'?'현재 후보에서 결과 뒤 남을 후보 수의 기대값이 가장 작은 배치를 추천합니다.':'현재 후보에서 가장 큰 결과 분기를 최소화하는 배치를 추천합니다.';
+    if(!history.length)$('history').innerHTML='<div class="muted small">아직 입력한 결과가 없습니다.</div>';else $('history').innerHTML=history.map((h,i)=>`<div class="hrow"><div>${i+1}</div><div class="hguess">${esc(maskName(h.guess))}</div><div class="hres">${h.result}</div></div>`).join('');
+    const shown=candidates.slice(0,40).map(maskName);$('candidateList').textContent=shown.join('  |  ')+(candidates.length>40?`  … +${candidates.length-40}개`:'');
+    $('labels').innerHTML=labels.map((x,i)=>`<input value="${esc(x)}" data-i="${i}" maxlength="4">`).join('');[...$('labels').querySelectorAll('input')].forEach(inp=>inp.onchange=()=>{labels[+inp.dataset.i]=inp.value.trim()||String(+inp.dataset.i+1);render()});
+  }
+  function applyResult(r){const before=[...candidates];const next=before.filter(c=>inter(c,currentGuess)===r);if(!next.length){alert('이 결과는 지금까지의 입력과 모순됩니다. 숫자를 다시 확인하세요.');return}history.push({guess:currentGuess,result:r,before});if(r===5){candidates=[currentGuess];render();return}candidates=next;currentGuess=chooseGuess(candidates,$('mode').value);render()}
+  $('undo').onclick=()=>{if(!history.length)return;const h=history.pop();candidates=h.before;currentGuess=h.guess;render()};$('reset').onclick=()=>{candidates=[...combos];history=[];currentGuess=combos[0];render()};$('mode').onchange=()=>{currentGuess=chooseGuess(candidates,$('mode').value);render()};
+   $('copy').onclick=()=>copyText(maskToIdx(currentGuess).map(i=>labels[i]).join(''),$('copy'));
+  s2render();render();
+})();
+</script>
+</body>
+</html>
